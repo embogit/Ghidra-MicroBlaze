@@ -1,0 +1,547 @@
+#Microblaze sleigh description
+
+define endian     = $(ENDIAN);
+define alignment  = 4;
+
+define space ram      type=ram_space        size=4 default;
+define space register type=register_space   size=4;
+
+define register offset=0 size=4
+  [ r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 ];
+
+define register offset=0x80 size=4
+  [ pc msr ear esr fsr btr edr slr shr pid zpr tlblo tlbhi tlbx tlbsx ] ;
+
+define register offset=0xBC size=4
+  [ pvr0 pvr1 pvr2 pvr3 pvr4 pvr5 pvr6 pvr7 pvr8 pvr9 pvr10 pvr11 pvr12 ] ;
+
+#hackish, but works
+define register offset=0x200 size=4
+  [ imm_msb imm_contextreg] ;
+
+define context imm_contextreg
+  immop = (1,1) noflow  # 1 if the instruction before is IMM
+;
+
+
+
+@define MSR_CC    "msr[0,32]"
+@define MSR_VMS   "msr[17,1]"
+@define MSR_VM    "msr[18,1]"
+@define MSR_UMS   "msr[19,1]"
+@define MSR_UM    "msr[20,1]"
+@define MSR_PVR   "msr[21,1]"
+@define MSR_EIP   "msr[22,1]"
+@define MSR_EE    "msr[23,1]"
+@define MSR_DCE   "msr[24,1]"
+@define MSR_DZO   "msr[25,1]"
+@define MSR_ICE   "msr[26,1]"
+@define MSR_FSL   "msr[27,1]"
+@define MSR_BIP   "msr[28,1]"
+@define MSR_C     "msr[29,1]"
+@define MSR_IE    "msr[30,1]"
+
+@if ENDIAN == "little"
+
+define token instr(32)
+      op05 = (26,31)
+      op610 = (21,25)
+      op2131 = (0,10)
+      op1620 = (11,15)
+      op1631 = (0,15)
+      op1617 = (14,15)
+      op1115 = (16,20)
+      op1116 = (15,20
+      op2626 = (5,5)
+      op2126 = (5,10)
+      op1627 = (4,15)
+
+      rD = (21,25)
+      rA = (16,20)
+      rB = (11,15)
+      rA_zero = (16,20)
+      rB_zero = (11,15)
+      rS = (0,13)
+      imm = (0,15)
+      immw = (6,10)
+      imms = (0,4)
+      imm3 = (21,25)
+      imm14= (0,13)
+      imm15= (0,14)
+      fsl = (0,3)
+;
+
+@else # ENDIAN == "big"
+define token instr(32)
+      op05 = (0,5)
+      op610 = (6,10)
+      op2131 = (21,31)
+      op1620 = (16,20)
+      op1631 = (16,31)
+      op1617 = (16,17)
+      op1115 = (11,15)
+      op1116 = (11,16)
+      op2626 = (26,26)
+      op2126 = (21,26)
+      op1627 = (16,27)
+
+      rD = (6,10)
+      rA = (11,15)
+      rB = (16,20)
+      rA_zero = (11,15)
+      rB_zero = (16,20)
+      rS = (21,31)
+      imm = (16,31)
+      
+      immw = (21,25)
+      imms = (27,31) 
+      imm3 = (6,10)
+      imm14= (18,31)
+      imm15= (17,31)
+      fsl = (28,31)
+;
+
+@endif # ENDIAN = "big"
+
+
+
+
+attach variables [ rD rA rB ] [ r0 r1 r2 r3 r4 r5 r6 r7	r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 ];
+
+#Zero register
+RA: rA is rA & rA_zero=0 {export 0:4;}
+RA: rA is rA             {export rA;}
+RB: rB is rB & rB_zero=0 {export 0:4;}
+RB: rB is rB             {export rB;}
+
+
+:imm imm is op05=0b101100 & op610=0b00000 & op1115=0b00000 & imm [immop=1; globalset(inst_next,immop); ] {
+     imm_msb=imm;
+}
+
+:addik rD, RA, imm is op05=0b001100 & rD & RA & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     rD = tmp + RA;
+}
+:addik rD, RA, imm is op05=0b001100 & rD & RA & imm & immop=1 {
+     rD = (imm_msb<<16) + imm + RA;
+}
+
+:brlid rD, imm is op05=0b101110 & rD & op1115=0b10100 & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     tmp=tmp+inst_start;
+     rD=tmp;
+     delayslot(1);
+     call [tmp];
+}
+
+:brlid rD, imm is op05=0b101110 & rD & op1115=0b10100 & imm & immop=1 {
+     tmp:4=inst_start+(imm_msb<<16)+imm;
+     rD=tmp;
+     delayslot(1);
+     call [tmp];
+}
+
+:rtsd RA, imm is op05=0b101101 & op610=0b10000 & RA & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     tmp=tmp+RA;
+     delayslot(1);
+     return [tmp];
+}
+
+:rtsd RA, imm is op05=0b101101 & op610=0b10000 & RA & imm & immop=1 {
+     tmp:4=RA+(imm_msb<<16)+imm;
+     delayslot(1);
+     return [tmp];
+}
+
+:swi rD, RA, imm is op05=0b111110 & rD & RA & imm & immop=0 {
+     local tmp:4 = RA + sext(imm[0,16]);
+     *[ram]:4 tmp = rD;
+}
+
+:swi rD, RA, imm is op05=0b111110 & rD & RA & imm & immop=1 {
+     local tmp:4 = RA + imm + (imm_msb<<16);
+     *[ram]:4 tmp = rD;
+}
+
+:lwi rD, RA, imm is op05=0b111010 & rD & RA & imm & immop=0 {
+     local tmp:4 = RA + sext(imm[0,16]);
+     rD = *[ram]:4 tmp;
+}
+
+:lwi rD, RA, imm is op05=0b111010 & rD & RA & imm & immop=1 {
+     local tmp:4 = RA + imm + (imm_msb<<16);
+     rD = *[ram]:4 tmp;
+}
+
+:bri imm is op05=0b101110 & rD & op1115=0b00000 & imm & immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     goto [tmp];
+}
+
+:bri imm is op05=0b101110 & rD & op1115=0b00000 & imm & immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     goto [tmp];
+}
+
+:bgei RA, imm is op05=0b101111 & op610=0b00101 & RA & imm &immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     if (RA s< 0) goto <out>;
+     goto [tmp];
+     <out>
+}
+
+:bgei RA, imm is op05=0b101111 & op610=0b00101 & RA & imm &immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     if (RA s< 0) goto <out>;
+     goto [tmp];
+     <out>
+}
+
+
+
+:mts rS, RA is op05=0b100101 & op610=0b00000 & RA & op1617=0b11 & rS {}
+:mtse rS, RA is op05=0b100101 & op610=0b01000 & RA & op1617=0b11 & rS {}
+:mfs rD, rS is op05=0b100101 & rD & op1115=0b00000 & op1617=0b10 & rS {}
+:mfse rD, rS is op05=0b100101 & rD & op1115=0b01000 & op1617=0b10 & rS {}
+:msrclr rD, imm15 is op05=0b100101 & rD & op1116=0b100010 & imm15 {}
+:msrset rD, imm15 is op05=0b100101 & rD & op1116=0b100000 & imm15 {}
+
+
+
+
+:add rD, RA, RB is op05=0b000000 & rD & RA & RB & op2131=0b00000000000 {
+     rD = RB + RA;
+     $(MSR_C) = scarry(RB, RA);
+}
+:rsub rD, RA, RB is op05=0b000001 & rD & RA & RB & op2131=0b00000000000 {
+     rD = RB + ~RA + 1;
+     $(MSR_C) = sborrow(RB, RA);
+}
+:addc rD, RA, RB is op05=0b000010 & rD & RA & RB & op2131=0b00000000000 {
+    local tmp:4 = zext($(MSR_C));
+    rD = RB + RA + tmp;
+    $(MSR_C) = scarry(RB, RA);
+   
+}
+:rsubc rD, RA, RB is op05=0b000011 & rD & RA & RB & op2131=0b00000000000 {
+    local tmp:4 = zext($(MSR_C));
+    rD = RB + ~RA + tmp;
+    $(MSR_C) = sborrow(RB, RA);
+}
+:addk rD, RA, RB is op05=0b000100 & rD & RA & RB & op2131=0b00000000000 {
+    rD = RB + RA;
+}
+:rsubk rD, RA, RB is op05=0b000101 & rD & RA & RB & op2131=0b00000000000 {
+    rD = RB + ~RA + 1;
+}
+
+:cmp rD, RA, RB is op05=0b000101 & rD & RA & RB & op2131=0b00000000001 {
+	rD = RB + ~RA + 1;
+    rD[31,1] = (RA s> RB);
+}
+:cmpu rD, RA, RB is op05=0b000101 & rD & RA & RB & op2131=0b00000000011 {
+	rD = RB + ~RA + 1;
+	rD[31,1] = (RA > RB);
+}
+:addkc rD, RA, RB is op05=0b000110 & rD & RA & RB & op2131=0b00000000000 {
+    local tmp:4 = zext($(MSR_C));
+    rD = RB + RA + tmp;
+}
+:rsubkc rD, RA, RB is op05=0b000111 & rD & RA & RB & op2131=0b00000000000 {
+  local tmp:4 = zext($(MSR_C));
+  rD = RB + ~RA + tmp;
+}
+:addi rD, RA, imm  is op05=0b001000 & rD & RA & imm {
+  rD = imm + RA;
+	$(MSR_C) = scarry(imm, RA);
+}
+:rsubi rD, RA, imm is op05=0b001001 & rD & RA & imm {
+	rD = imm + ~RA + 1;
+	$(MSR_C) = sborrow(imm, RA);
+}
+:addic rD, RA, imm is op05=0b001010 & rD & RA & imm {
+    local tmp:4 = zext($(MSR_C));
+    rD = imm + RA + tmp;
+    $(MSR_C) = scarry(imm, RA);
+}
+:rsubic rD, RA, imm is op05=0b001011 & rD & RA & imm {
+    local tmp:4 = zext($(MSR_C));
+    rD = imm + ~RA + tmp;
+	  $(MSR_C) = sborrow(imm, RA);
+}
+:rsubik rD, RA, imm is op05=0b001101 & rD & RA & imm {
+    rD = imm + ~RA + 1;
+}
+:addikc rD, RA, imm is op05=0b001110 & rD & RA & imm {
+    local tmp:4 = zext($(MSR_C));
+    rD = imm + RA + tmp;
+}
+:rsubikc rD, RA, imm is op05=0b001111 & rD & RA & imm {
+    local tmp:4 = zext($(MSR_C));
+    rD = imm + ~RA + tmp;
+}
+:mul rD, RA, RB is op05=0b010000 & rD & RA & RB & op2131=0b00000000000 {
+	rD = RA * RB;
+}
+:mulh rD, RA, RB is op05=0b010000 & rD & RA & RB & op2131=0b00000000001 {
+	rD = (RA * RB) s>> 32;
+}
+:mulhu rD, RA, RB is op05=0b010000 & rD & RA & RB & op2131=0b00000000011 {
+	rD = (RA * RB) >> 32;
+}
+:mulhsu rD, RA, RB is op05=0b010000 & rD & RA & RB & op2131=0b00000000010 {
+	rD = (RA * RB) s>> 32;
+}
+:bsrl rD, RA, RB is op05=0b010001 & rD & RA & RB & op2131=0b00000000000 {
+	rD = 0 & (RA >> RB);
+}
+:bsra rD, RA, RB is op05=0b010001 & rD & RA & RB & op2131=0b01000000000 {
+	rD = RA s>> RB;
+}
+:bsll rD, RA, RB is op05=0b010001 & rD & RA & RB & op2131=0b10000000000 {
+	rD = (RA << RB) & 0;
+}
+:idiv rD, RA, RB is op05=0b010010 & rD & RA & RB & op2131=0b00000000000 {
+	rD = RB s/ RA;
+}
+:idivu rD, RA, RB is op05=0b010010 & rD & RA & RB & op2131=0b00000000010 {
+	rD = RB / RA;
+}
+:tneagetd.t rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b000100000000 unimpl
+:tneagetd.n rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b010000000000 unimpl
+:tneagetd.e rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b000000100000 unimpl
+:tneagetd.a rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b000001000000 unimpl
+:tnecagetd.t rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b00110000000 unimpl
+:tnecagetd.n rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b01100000000 unimpl
+:tnecagetd.e rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b00100100000 unimpl
+:tnecagetd.a rD, RB is op05=0b110010 & rD & RB & op1115=0 & op2131=0b00101000000 unimpl
+:naputd.n RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b11000000000 unimpl
+:naputd.a RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b10001000000 unimpl
+:tnaputd.n RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b11010000000 unimpl
+:tnaputd.a RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b10011000000 unimpl
+:ncaputd.n RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b11100000000 unimpl
+:ncaputd.a RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b10101000000 unimpl
+:tncaputd.n RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b1111000000 unimpl
+:tncaputd.a RA, RB is op05=0b010011 & op610=0 & RA & RB & op2131=0b1011100000 unimpl
+:fadd rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b00000000000 {
+    rD = RB f+ RA;
+}
+
+:frsub rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b00010000000 {
+  rD = RB f- RA;
+}
+
+:fmul rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b00100000000 {
+  rD = RB f* RA;
+}
+
+:fdiv rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b00110000000 {
+  rD = RB f/ RA;
+}
+
+:fcmp.un rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01000000000 {
+  local tmp:1 = nan(RA) || nan(RB);
+  rD = zext(tmp);
+}
+
+:fcmp.lt rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01000010000{
+  local tmp:1 = RB f< RA;
+  rD = zext(tmp);
+}
+
+:fcmp.eq rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01000100000 {
+  local tmp:1 = RB f== RA;
+  rD = zext(tmp);
+}
+
+:fcmp.le rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01000110000 {
+  local tmp:1 = RB f<= RA;
+  rD = zext(tmp);
+}
+
+:fcmp.gt rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01001000000 {
+  local tmp:1 = RB f> RA;
+  rD = zext(tmp);
+}
+
+:fcmp.ne rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01001010000 {
+  local tmp:1 = RB f!= RA;
+  rD = zext(tmp);
+}
+
+:fcmp.ge rD, RA, RB is op05=0b010110 & rD & RA & RB & op2131=0b01001100000 {
+  local tmp:1 = RB f>= RA;
+  rD = zext(tmp);
+}
+
+:flt rD, RA is op05=0b010110 & rD & RA & op1620=0b00000 & op2131=0b01010000000 {
+  rD = int2float(RA);
+}
+
+:fint rD, RA is op05=0b010110 & rD & RA & op1620=0b00000 & op2131=0b01100000000 {
+  rD = trunc(RA);
+}
+
+:fsqrt rD, RA is op05=0b010110 & rD & RA & op1620=0b00000 & op2131=0b01110000000 {
+  rD = sqrt(RA);
+}
+:muli rD, RA, imm is op05=0b011000 & rD & RA & imm {
+	rD = RA * imm;
+}
+:bsrli rD, RA, imms is op05=0b011001 & rD & RA & rB=0b00000 & op2126=0b000000 & imms {
+	rD = 0 & (RA >> imms);
+}
+:bsrai rD, RA, imms is op05=0b011001 & rD & RA & rB=0b00000 & op2126=0b010000 & imms {
+	rD = RA s>> imms;
+}
+:bslli rD, RA, imms is op05=0b011001 & rD & RA & rB=0b00000 & op2126=0b100000 & imms {
+	rD = (RA << imms) & 0;
+}
+:bsefi rD, RA, immw, imms is op05=0b011001 & rD & RA & rB=0b01000 & immw & op2626=0 & imms unimpl
+:bsifi rD, RA, immw, imms is op05=0b011001 & rD & RA & rB=0b10000 & immw & op2626=0 & imms unimpl
+:tneaget.t rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b000100000000 & fsl unimpl
+:tneaget.n rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b010000000000 & fsl unimpl
+:tneaget.e rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b000001000000 & fsl unimpl
+:tneaget.a rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b000010000000 & fsl unimpl
+:tnecaget.t rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b001100000000 & fsl unimpl
+:tnecaget.n rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b011000000000 & fsl unimpl
+:tnecaget.e rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b001001000000 & fsl unimpl
+:tnecaget.a rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b001010000000 & fsl unimpl
+:naput.n RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b110000000000 & fsl unimpl
+:naput.a RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b100010000000 & fsl unimpl
+:tnaput.n RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b110100000000 & fsl unimpl
+:tnaput.a RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b100110000000 & fsl unimpl
+:ncaput.n RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b111000000000 & fsl unimpl
+:ncaput.a RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b101000000000 & fsl unimpl
+:tncaput.n RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b111100000000 & fsl unimpl
+:tncaput.a RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b101110000000 & fsl unimpl
+:or rD, RA, RB is op05=0b100000 & rD & RA & RB & op2131=0b00000000000 {
+	rD = RA | RB;
+}
+:pcmpbf rD, RA, RB is op05=0b100000 & rD & RA & RB & op2131=0b10000000000 unimpl
+:and rD, RA, RB is op05=0b100001 & rD & RA & RB & op2131=0b00000000000 {
+	rD = RA & RB;
+}
+:xor rD, RA, RB is op05=0b100010 & rD & RA & RB & op2131=0b00000000000 {
+	rD = RA ^ RB;
+}
+:pcmpeq rD, RA, RB is op05=0b100010 & rD & RA & RB & op2131=0b10000000000 unimpl
+:andn rD, RA, RB is op05=0b100011 & rD & RA & RB & op2131=0b00000000000 {
+	rD = RA & ~RB;
+}
+:pcmpne rD, RA, RB is op05=0b100011 & rD & RA & RB & op2131=0b10000000000 unimpl
+:sra rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000000000001 {
+	rD = RA s>> 1;
+}
+:src rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000000100001 unimpl
+:srl rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001000001 unimpl
+:sext8 rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001100000 {
+	local tmp:1 = RA[0,8];
+	rD = sext(tmp);
+}
+:sext16 rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001100001 {
+	local tmp:2 = RA[0,16];
+	rD = sext(tmp);
+}
+:clz rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000011100000 unimpl
+:swapb rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000111100000 unimpl
+:swaph rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000111100010 unimpl
+:wic RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001101000 unimpl
+:wdc RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001100100 unimpl
+:wdc.flush RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001110100 unimpl
+:wdc.clear RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001100110 unimpl
+:wdc.clear.ea RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00011100110 unimpl
+:br RB is op05=0b100110 & op610=0 & op1115=0 & RB & op2131=0b00000000000 unimpl
+:brd RB is op05=0b100110 & op610=0 & op1115=0b10000 & RB & op2131=0b00000000000 unimpl
+:brld rD, RB is op05=0b100110 & rD & op1115=0b10100 & RB & op2131=0b00000000000 unimpl
+:bra RB is op05=0b100110 & op610=0 & op1115=0b01000 & RB & op2131=0b00000000000 unimpl
+:brad RB is op05=0b100110 & op610=0 & op1115=0b11000 & RB & op2131=0b00000000000 unimpl
+:brald rD, RB is op05=0b100110 & rD & op1115=0b11100 & RB & op2131=0b00000000000 unimpl
+:brk rD, RB is op05=0b100110 & rD & op1115=0b01100 & RB & op2131=0b00000000000 unimpl
+:beq RA, RB is op05=0b100111 & op610=0b00000 & RA & RB & op2131=0b00000000000 unimpl
+:bne RA, RB is op05=0b100111 & op610=0b00001 & RA & RB & op2131=0b00000000000 unimpl
+:blt RA, RB is op05=0b100111 & op610=0b00010 & RA & RB & op2131=0b00000000000 unimpl
+:ble RA, RB is op05=0b100111 & op610=0b00011 & RA & RB & op2131=0b00000000000 unimpl
+:bgt RA, RB is op05=0b100111 & op610=0b00100 & RA & RB & op2131=0b00000000000 unimpl
+:bge RA, RB is op05=0b100111 & op610=0b00101 & RA & RB & op2131=0b00000000000 unimpl
+:beqd RA, RB is op05=0b100111 & op610=0b10000 & RA & RB & op2131=0b00000000000 unimpl
+:bned RA, RB is op05=0b100111 & op610=0b10001 & RA & RB & op2131=0b00000000000 unimpl
+:bltd RA, RB is op05=0b100111 & op610=0b10010 & RA & RB & op2131=0b00000000000 unimpl
+:bled RA, RB is op05=0b100111 & op610=0b10011 & RA & RB & op2131=0b00000000000 unimpl
+:bgtd RA, RB is op05=0b100111 & op610=0b10100 & RA & RB & op2131=0b00000000000 unimpl
+:bged RA, RB is op05=0b100111 & op610=0b10101 & RA & RB & op2131=0b00000000000 unimpl
+:ori rD, RA, imm is op05=0b101000 & rD & RA & imm {
+	rD = RA | imm;
+}
+:andi rD, RA, imm is op05=0b101001 & rD & RA & imm {
+	rD = RA & imm;
+}
+:xori rD, RA, imm is op05=0b101010 & rD & RA & imm {
+	rD = RA ^ imm;
+}
+:andni rD, RA, imm is op05=0b101011 & rD & RA & imm {
+	rD = RA & ~imm;
+}
+:rtid RA, imm is op05=0b101101 & op610=0b10001 & RA & imm unimpl
+:rtbd RA, imm is op05=0b101101 & op610=0b10010 & RA & imm unimpl
+:rted RA, imm is op05=0b101101 & op610=0b10100 & RA & imm unimpl
+:mbar imm3 is op05=0b101110 & imm3 & op1115=0b00010 & op1631=0b0000000000000100 unimpl
+:brid imm is op05=0b101110 & op610=0 & op1115=0b10000 & imm unimpl
+:brai imm is op05=0b101110 & op610=0 & op1115=0b01000 & imm unimpl
+:braid imm is op05=0b101110 & op610=0 & op1115=0b11000 & imm unimpl
+:bralid rD is op05=0b101110 & rD & op1115=0b11100 & imm unimpl
+:brki rD, imm is op05=0b101110 & rD & op1115=0b01100 & imm unimpl
+:beqi RA, imm is op05=0b101111 & op610=0b00000 & RA & imm unimpl
+:bnei RA, imm is op05=0b101111 & op610=0b00001 & RA & imm unimpl
+:blti RA, imm is op05=0b101111 & op610=0b00010 & RA & imm unimpl
+:blei RA, imm is op05=0b101111 & op610=0b00011 & RA & imm unimpl
+:bgti RA, imm is op05=0b101111 & op610=0b00100 & RA & imm unimpl
+:beqid RA, imm is op05=0b101111 & op610=0b10000 & RA & imm unimpl
+:bneid RA, imm is op05=0b101111 & op610=0b10001 & RA & imm unimpl
+:bltid RA, imm is op05=0b101111 & op610=0b10010 & RA & imm unimpl
+:bleid RA, imm is op05=0b101111 & op610=0b10011 & RA & imm unimpl
+:bgtid RA, imm is op05=0b101111 & op610=0b10100 & RA & imm unimpl
+:bgeid RA, imm is op05=0b101111 & op610=0b10101 & RA & imm unimpl
+:lbu rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00000000000 unimpl
+:lbur rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b01000000000 unimpl
+:lbuea rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00010000000 unimpl
+:lhu rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b00000000000 unimpl
+:lhur rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b01000000000 unimpl
+:lhuea rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b00010000000 unimpl
+:lw rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b00000000000 {
+	local tmp:4 = RA + RB;
+	rD = *:4 tmp;
+}
+:lwr rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b01000000000 unimpl
+:lwx rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b10000000000 unimpl
+:lwea rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b00010000000 unimpl
+:sb rD, RA, RB is op05=0b110100 & rD & RA & RB & op2131=0b00000000000 unimpl
+:sbr rD, RA, RB is op05=0b110100 & rD & RA & RB & op2131=0b01000000000 unimpl
+:sh rD, RA, RB is op05=0b110101 & rD & RA & RB & op2131=0b00000000000 unimpl
+:shr rD, RA, RB is op05=0b110101 & rD & RA & RB & op2131=0b01000000000 unimpl
+:shea rD, RA, RB is op05=0b110101 & rD & RA & RB & op2131=0b00010000000 unimpl
+:sw rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b00000000000 {
+	local tmp:4 = RA + RB;
+	*:4 tmp = rD;
+}
+:swr rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b01000000000 unimpl
+:swx rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b10000000000 unimpl
+:swea rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b00010000000 unimpl
+:lbui rD, RA, imm is op05=0b111000 & rD & RA & imm {
+	local tmp:4 = RA + imm;
+	rD = zext(*[ram]:1 tmp);
+}
+:lhui rD, RA, imm is op05=0b111001 & rD & RA & imm {
+	local tmp:4 = RA + imm;
+	rD = zext(*[ram]:2 tmp);
+}
+:sbi rD, RA, imm is op05=0b111100 & rD & RA & imm {
+	local tmp:4 = RA + imm;
+	*[ram]:1 tmp = rD:1;
+}
+:shi rD, RA, imm is op05=0b111101 & rD & RA & imm {
+	local tmp:4 = RA + imm;
+	*[ram]:2 tmp = rD:2;
+}

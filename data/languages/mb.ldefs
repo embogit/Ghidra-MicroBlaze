@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<language_definitions>
+  <language processor="MicroBlaze"
+            endian="little"
+            size="32"
+            variant="default"
+            version="11.0"
+            slafile="mb_le.sla"
+            processorspec="mb.pspec"
+            manualindexfile="../manuals/MicroBlaze.idx"
+            id="mb:LE:32:default">
+    <description>Xilinx MicroBlaze 32 little endian</description>
+    <compiler name="default" spec="mb.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="mb.dwarf"/>
+  </language>
+  
+  <language processor="MicroBlaze"
+            endian="big"
+            size="32"
+            variant="default"
+            version="11.0"
+            slafile="mb_be.sla"
+            processorspec="mb.pspec"
+            manualindexfile="../manuals/MicroBlaze.idx"
+            id="mb:BE:32:default">
+    <description>Xilinx MicroBlaze 32 little endian</description>
+    <compiler name="default" spec="mb.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="mb.dwarf"/>
+  </language>
+</language_definitions>

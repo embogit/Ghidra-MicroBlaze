@@ -175,6 +175,38 @@ RB: rB is rB             {export rB;}
      <out>
 }
 
+:bgeid RA, imm is op05=0b101111 & op610=0b10101 & RA & imm & immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     if (RA s< 0) goto <out>;
+     delayslot(1);
+     goto [tmp];
+     <out>
+}
+
+:bgeid RA, imm is op05=0b101111 & op610=0b10101 & RA & imm & immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     if (RA s< 0) goto <out>;
+     delayslot(1);
+     goto [tmp];
+     <out>
+}
+
+:bltid RA, imm is op05=0b101111 & op610=0b10010 & RA & imm & immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     if ( RA s>= 0) goto <out>;
+     delayslot(1);
+     goto [tmp];
+     <out>
+}
+
+:bltid RA, imm is op05=0b101111 & op610=0b10010 & RA & imm & immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     if ( RA s>= 0) goto <out>;
+     delayslot(1);
+     goto [tmp];
+     <out>
+}
+
 :brai imm is op05=0b101110 & op610=0 & op1115=0b01000 & imm & immop=0 {
      local tmp:4 = sext(imm[0,16]);
      goto [tmp];
@@ -192,6 +224,19 @@ RB: rB is rB             {export rB;}
 
 :bri imm is op05=0b101110 & rD & op1115=0b00000 & imm & immop=1 {
      local tmp:4 = inst_start + imm + (imm_msb<<16);
+     goto [tmp];
+}
+
+
+:brid imm is op05=0b101110 & op610=0 & op1115=0b10000 & imm & immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     delayslot(1);
+     goto [tmp];
+}
+
+:brid imm is op05=0b101110 & op610=0 & op1115=0b10000 & imm & immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     delayslot(1);
      goto [tmp];
 }
 
@@ -512,7 +557,6 @@ RB: rB is rB             {export rB;}
 :rtbd RA, imm is op05=0b101101 & op610=0b10010 & RA & imm unimpl
 :rted RA, imm is op05=0b101101 & op610=0b10100 & RA & imm unimpl
 :mbar imm3 is op05=0b101110 & imm3 & op1115=0b00010 & op1631=0b0000000000000100 unimpl
-:brid imm is op05=0b101110 & op610=0 & op1115=0b10000 & imm unimpl
 :braid imm is op05=0b101110 & op610=0 & op1115=0b11000 & imm unimpl
 :bralid rD is op05=0b101110 & rD & op1115=0b11100 & imm unimpl
 :brki rD, imm is op05=0b101110 & rD & op1115=0b01100 & imm unimpl
@@ -523,10 +567,8 @@ RB: rB is rB             {export rB;}
 :bgti RA, imm is op05=0b101111 & op610=0b00100 & RA & imm unimpl
 :beqid RA, imm is op05=0b101111 & op610=0b10000 & RA & imm unimpl
 :bneid RA, imm is op05=0b101111 & op610=0b10001 & RA & imm unimpl
-:bltid RA, imm is op05=0b101111 & op610=0b10010 & RA & imm unimpl
 :bleid RA, imm is op05=0b101111 & op610=0b10011 & RA & imm unimpl
 :bgtid RA, imm is op05=0b101111 & op610=0b10100 & RA & imm unimpl
-:bgeid RA, imm is op05=0b101111 & op610=0b10101 & RA & imm unimpl
 :lbu rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00000000000 unimpl
 :lbur rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b01000000000 unimpl
 :lbuea rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00010000000 unimpl

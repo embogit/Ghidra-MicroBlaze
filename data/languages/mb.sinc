@@ -264,6 +264,22 @@ RB: rB is rB             {export rB;}
      <out>
 }
 
+:bgtid RA, imm is op05=0b101111 & op610=0b10100 & RA & imm & immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     if (RA s<= 0) goto <out>;
+     delayslot(1);
+     goto [tmp];
+     <out>
+}
+
+:bgtid RA, imm is op05=0b101111 & op610=0b10100 & RA & imm & immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     if (RA s<= 0) goto <out>;
+     delayslot(1);
+     goto [tmp];
+     <out>
+}
+
 :blei RA, imm is op05=0b101111 & op610=0b00011 & RA & imm & immop=0 {
      local tmp:4 = inst_start + sext(imm[0,16]);
      if (RA s> 0) goto <out>;
@@ -290,6 +306,20 @@ RB: rB is rB             {export rB;}
      local tmp:4 = inst_start + imm + (imm_msb<<16);
      if (RA s> 0) goto <out>;
      delayslot(1);
+     goto [tmp];
+     <out>
+}
+
+:blti RA, imm is op05=0b101111 & op610=0b00010 & RA & imm & immop=0 {
+     local tmp:4 = inst_start + sext(imm[0,16]);
+     if ( RA s>= 0) goto <out>;
+     goto [tmp];
+     <out>
+}
+
+:blti RA, imm is op05=0b101111 & op610=0b00010 & RA & imm & immop=1 {
+     local tmp:4 = inst_start + imm + (imm_msb<<16);
+     if ( RA s>= 0) goto <out>;
      goto [tmp];
      <out>
 }
@@ -340,6 +370,44 @@ RB: rB is rB             {export rB;}
      <out>
 }
 
+:br RB is op05=0b100110 & op610=0 & op1115=0 & RB & op2131=0b00000000000 {
+    local tmp:4 = inst_start + RB;
+    goto [tmp];
+}
+
+:bra RB is op05=0b100110 & op610=0 & op1115=0b01000 & RB & op2131=0b00000000000 {
+    local tmp:4 = RB;
+    goto [tmp];
+}
+    
+:brd RB is op05=0b100110 & op610=0 & op1115=0b10000 & RB & op2131=0b00000000000 {
+    local tmp:4 = inst_start + RB;
+    delayslot(1);
+    goto [tmp];
+}
+
+:brad RB is op05=0b100110 & op610=0 & op1115=0b11000 & RB & op2131=0b00000000000 {
+    local tmp:4 = RB;
+    delayslot(1);
+    goto [tmp];
+}
+   
+:brld rD, RB is op05=0b100110 & rD & op1115=0b10100 & RB & op2131=0b00000000000 {
+    local tmp:4 = inst_start + RB;
+    local tmp2:4 = inst_start;
+    delayslot(1);
+    rD=tmp2;
+    goto [tmp];
+}
+
+
+:brald rD, RB is op05=0b100110 & rD & op1115=0b11100 & RB & op2131=0b00000000000 {
+    local tmp:4 = RB;
+    local tmp2:4=inst_start;
+    delayslot(1);
+    rD=tmp2;
+    goto [tmp];
+}
 
 :brai imm is op05=0b101110 & op610=0 & op1115=0b01000 & imm & immop=0 {
      local tmp:4 = sext(imm[0,16]);
@@ -397,6 +465,36 @@ RB: rB is rB             {export rB;}
 	rD = RB / RA;
 }
 
+:lbu rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00000000000 {
+	local tmp:4 = RA + RB;
+	rD = zext(*[ram]:1 tmp);
+}
+
+:lbui rD, RA, imm is op05=0b111000 & rD & RA & imm & immop=0 {
+	local tmp:4 = RA + sext(imm[0,16]);
+	rD = zext(*[ram]:1 tmp);
+}
+
+:lbui rD, RA, imm is op05=0b111000 & rD & RA & imm & immop=1 {
+	local tmp:4 = RA + imm + (imm_msb<<16);
+	rD = zext(*[ram]:1 tmp);
+}
+
+:lhui rD, RA, imm is op05=0b111001 & rD & RA & imm & immop=0 {
+	local tmp:4 = RA + sext(imm[0,16]);
+	rD = zext(*[ram]:2 tmp);
+}
+
+:lhui rD, RA, imm is op05=0b111001 & rD & RA & imm & immop=1 {
+	local tmp:4 = RA + imm + (imm_msb<<16);
+	rD = zext(*[ram]:2 tmp);
+}
+
+:lw rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b00000000000 {
+	local tmp:4 = RA + RB;
+	rD = *[ram]:4 tmp;
+}
+
 :lwi rD, RA, imm is op05=0b111010 & rD & RA & imm & immop=0 {
      local tmp:4 = RA + sext(imm[0,16]);
      rD = *[ram]:4 tmp;
@@ -442,6 +540,15 @@ RB: rB is rB             {export rB;}
 	rD = RA | tmp;
 }
 
+:pcmpeq rD, RA, RB is op05=0b100010 & rD & RA & RB & op2131=0b10000000000 {
+	local tmp:4 = zext(RA == RB);
+	rD = tmp;
+}
+:pcmpne rD, RA, RB is op05=0b100011 & rD & RA & RB & op2131=0b10000000000 {
+	local tmp:4 = zext(RA != RB);
+	rD = tmp;
+}
+
 :rtsd RA, imm is op05=0b101101 & op610=0b10000 & RA & imm & immop=0 {
      tmp:4=sext(imm[0,16]);
      tmp=tmp+RA;
@@ -455,6 +562,62 @@ RB: rB is rB             {export rB;}
      return [tmp];
 }
 
+:sb rD, RA, RB is op05=0b110100 & rD & RA & RB & op2131=0b00000000000 {
+	local tmp:4 = RA + RB;
+	*[ram]:1 tmp = rD:1;
+}
+
+:sbi rD, RA, imm is op05=0b111100 & rD & RA & imm & immop=0 {
+	local tmp:4 = RA + sext(imm[0,16]);
+	*[ram]:1 tmp = rD:1;
+}
+
+:sbi rD, RA, imm is op05=0b111100 & rD & RA & imm & immop=1 {
+	local tmp:4 = RA + imm + (imm_msb<<16);
+	*[ram]:1 tmp = rD:1;
+}
+
+:shi rD, RA, imm is op05=0b111101 & rD & RA & imm & immop=0 {
+	local tmp:4 = RA + sext(imm[0,16]);
+	*[ram]:2 tmp = rD:2;
+}
+
+:shi rD, RA, imm is op05=0b111101 & rD & RA & imm & immop=1 {
+	local tmp:4 = RA + imm + (imm_msb<<16);
+	*[ram]:2 tmp = rD:2;
+}
+
+:sext8 rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001100000 {
+	local tmp:1 = RA[0,8];
+	rD = sext(tmp);
+}
+:sext16 rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001100001 {
+	local tmp:2 = RA[0,16];
+	rD = sext(tmp);
+}
+
+:sra rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000000000001 {
+	rD = RA s>> 1;
+        $(MSR_C) = RA[0,1];
+}
+
+:src rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000000100001 {
+	rD = RA s>> 1;
+	rD[31,1]=$(MSR_C);
+        $(MSR_C) = RA[0,1];
+}
+
+
+:srl rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001000001 {
+        rD=RA >> 1;
+        $(MSR_C) = RA[0,1];
+}
+
+:sw rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b00000000000 {
+	local tmp:4 = RA + RB;
+	*[ram]:4 tmp = rD;
+}
+
 :swi rD, RA, imm is op05=0b111110 & rD & RA & imm & immop=0 {
      local tmp:4 = RA + sext(imm[0,16]);
      *[ram]:4 tmp = rD;
@@ -464,6 +627,23 @@ RB: rB is rB             {export rB;}
      local tmp:4 = RA + imm + (imm_msb<<16);
      *[ram]:4 tmp = rD;
 }
+
+#Cache operations are only NOP
+:wdc RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001100100 {
+}
+:wdc.flush RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001110100 {
+}
+:wdc.clear RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001100110 {
+}
+:wdc.clear.ea RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00011100110 {
+}
+:wdc.flush.ext RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b10001110100 {
+}
+:wdc.clear.ext RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b10001100110 {
+}
+:wic RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001101000 {
+}
+
 
 :xor rD, RA, RB is op05=0b100010 & rD & RA & RB & op2131=0b00000000000 {
 	rD = RA ^ RB;
@@ -657,35 +837,9 @@ RB: rB is rB             {export rB;}
 :tncaput.n RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b111100000000 & fsl unimpl
 :tncaput.a RA, fsl is op05=0b011011 & op610=0 & RA & op1627=0b101110000000 & fsl unimpl
 :pcmpbf rD, RA, RB is op05=0b100000 & rD & RA & RB & op2131=0b10000000000 unimpl
-:pcmpeq rD, RA, RB is op05=0b100010 & rD & RA & RB & op2131=0b10000000000 unimpl
-:pcmpne rD, RA, RB is op05=0b100011 & rD & RA & RB & op2131=0b10000000000 unimpl
-:sra rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000000000001 {
-	rD = RA s>> 1;
-}
-:src rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000000100001 unimpl
-:srl rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001000001 unimpl
-:sext8 rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001100000 {
-	local tmp:1 = RA[0,8];
-	rD = sext(tmp);
-}
-:sext16 rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000001100001 {
-	local tmp:2 = RA[0,16];
-	rD = sext(tmp);
-}
 :clz rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000011100000 unimpl
 :swapb rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000111100000 unimpl
 :swaph rD, RA is op05=0b100100 & rD & RA & op1631=0b0000000111100010 unimpl
-:wic RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001101000 unimpl
-:wdc RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001100100 unimpl
-:wdc.flush RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001110100 unimpl
-:wdc.clear RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00001100110 unimpl
-:wdc.clear.ea RA, RB is op05=0b100100 & op610=0b00000 & RA & RB & op2131=0b00011100110 unimpl
-:br RB is op05=0b100110 & op610=0 & op1115=0 & RB & op2131=0b00000000000 unimpl
-:brd RB is op05=0b100110 & op610=0 & op1115=0b10000 & RB & op2131=0b00000000000 unimpl
-:brld rD, RB is op05=0b100110 & rD & op1115=0b10100 & RB & op2131=0b00000000000 unimpl
-:bra RB is op05=0b100110 & op610=0 & op1115=0b01000 & RB & op2131=0b00000000000 unimpl
-:brad RB is op05=0b100110 & op610=0 & op1115=0b11000 & RB & op2131=0b00000000000 unimpl
-:brald rD, RB is op05=0b100110 & rD & op1115=0b11100 & RB & op2131=0b00000000000 unimpl
 :brk rD, RB is op05=0b100110 & rD & op1115=0b01100 & RB & op2131=0b00000000000 unimpl
 :beq RA, RB is op05=0b100111 & op610=0b00000 & RA & RB & op2131=0b00000000000 unimpl
 :bne RA, RB is op05=0b100111 & op610=0b00001 & RA & RB & op2131=0b00000000000 unimpl
@@ -707,45 +861,18 @@ RB: rB is rB             {export rB;}
 :bralid rD is op05=0b101110 & rD & op1115=0b11100 & imm unimpl
 :brki rD, imm is op05=0b101110 & rD & op1115=0b01100 & imm unimpl
 :blti RA, imm is op05=0b101111 & op610=0b00010 & RA & imm unimpl
-:bgtid RA, imm is op05=0b101111 & op610=0b10100 & RA & imm unimpl
-:lbu rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00000000000 unimpl
 :lbur rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b01000000000 unimpl
 :lbuea rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00010000000 unimpl
 :lhu rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b00000000000 unimpl
 :lhur rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b01000000000 unimpl
 :lhuea rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b00010000000 unimpl
-:lw rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b00000000000 {
-	local tmp:4 = RA + RB;
-	rD = *:4 tmp;
-}
 :lwr rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b01000000000 unimpl
 :lwx rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b10000000000 unimpl
 :lwea rD, RA, RB is op05=0b110010 & rD & RA & RB & op2131=0b00010000000 unimpl
-:sb rD, RA, RB is op05=0b110100 & rD & RA & RB & op2131=0b00000000000 unimpl
 :sbr rD, RA, RB is op05=0b110100 & rD & RA & RB & op2131=0b01000000000 unimpl
 :sh rD, RA, RB is op05=0b110101 & rD & RA & RB & op2131=0b00000000000 unimpl
 :shr rD, RA, RB is op05=0b110101 & rD & RA & RB & op2131=0b01000000000 unimpl
 :shea rD, RA, RB is op05=0b110101 & rD & RA & RB & op2131=0b00010000000 unimpl
-:sw rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b00000000000 {
-	local tmp:4 = RA + RB;
-	*:4 tmp = rD;
-}
 :swr rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b01000000000 unimpl
 :swx rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b10000000000 unimpl
 :swea rD, RA, RB is op05=0b110110 & rD & RA & RB & op2131=0b00010000000 unimpl
-:lbui rD, RA, imm is op05=0b111000 & rD & RA & imm {
-	local tmp:4 = RA + imm;
-	rD = zext(*[ram]:1 tmp);
-}
-:lhui rD, RA, imm is op05=0b111001 & rD & RA & imm {
-	local tmp:4 = RA + imm;
-	rD = zext(*[ram]:2 tmp);
-}
-:sbi rD, RA, imm is op05=0b111100 & rD & RA & imm {
-	local tmp:4 = RA + imm;
-	*[ram]:1 tmp = rD:1;
-}
-:shi rD, RA, imm is op05=0b111101 & rD & RA & imm {
-	local tmp:4 = RA + imm;
-	*[ram]:2 tmp = rD:2;
-}

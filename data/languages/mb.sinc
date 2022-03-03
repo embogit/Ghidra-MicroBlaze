@@ -809,17 +809,17 @@ RB: rB is rB             {export rB;}
 :fsqrt rD, RA is op05=0b010110 & rD & RA & op1620=0b00000 & op2131=0b01110000000 {
   rD = sqrt(RA);
 }
-:bsrli rD, RA, imms is op05=0b011001 & rD & RA & rB=0b00000 & op2126=0b000000 & imms {
+:bsrli rD, RA, imms is op05=0b011001 & rD & RA & op1620=0b00000 & op2126=0b000000 & imms {
 	rD = 0 & (RA >> imms);
 }
-:bsrai rD, RA, imms is op05=0b011001 & rD & RA & rB=0b00000 & op2126=0b010000 & imms {
+:bsrai rD, RA, imms is op05=0b011001 & rD & RA & op1620=0b00000 & op2126=0b010000 & imms {
 	rD = RA s>> imms;
 }
-:bslli rD, RA, imms is op05=0b011001 & rD & RA & rB=0b00000 & op2126=0b100000 & imms {
+:bslli rD, RA, imms is op05=0b011001 & rD & RA & op1620=0b00000 & op2126=0b100000 & imms {
 	rD = (RA << imms) & 0;
 }
-:bsefi rD, RA, immw, imms is op05=0b011001 & rD & RA & rB=0b01000 & immw & op2626=0 & imms unimpl
-:bsifi rD, RA, immw, imms is op05=0b011001 & rD & RA & rB=0b10000 & immw & op2626=0 & imms unimpl
+:bsefi rD, RA, immw, imms is op05=0b011001 & rD & RA & op1620=0b01000 & immw & op2626=0 & imms unimpl
+:bsifi rD, RA, immw, imms is op05=0b011001 & rD & RA & op1620=0b10000 & immw & op2626=0 & imms unimpl
 :tneaget.t rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b000100000000 & fsl unimpl
 :tneaget.n rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b010000000000 & fsl unimpl
 :tneaget.e rD, fsl is op05=0b011011 & rD & op1115=0 & op1627=0b000001000000 & fsl unimpl

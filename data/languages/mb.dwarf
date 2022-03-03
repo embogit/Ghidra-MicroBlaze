@@ -20,5 +20,5 @@
 		<register_mapping dwarf="36869" ghidra="tlbsx"/>
 		<register_mapping dwarf="40960" ghidra="pvr0" auto_count="13"/>
 	</register_mappings>
-	<call_frame_cfa value="4"/>
+	<call_frame_cfa value="0"/>
 </dwarf>

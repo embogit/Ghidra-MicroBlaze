@@ -400,6 +400,18 @@ RB: rB is rB             {export rB;}
     goto [tmp];
 }
 
+:braid imm is op05=0b101110 & op610=0 & op1115=0b11000 & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     delayslot(1);
+     call [tmp];
+}
+
+:braid imm is op05=0b101110 & op610=0 & op1115=0b11000 & imm & immop=1 {
+     local tmp:4 = imm + (imm_msb<<16);
+     delayslot(1);
+     call [tmp];
+}
+
 
 :brald rD, RB is op05=0b100110 & rD & op1115=0b11100 & RB & op2131=0b00000000000 {
     local tmp:4 = RB;
@@ -407,6 +419,20 @@ RB: rB is rB             {export rB;}
     delayslot(1);
     rD=tmp2;
     goto [tmp];
+}
+
+:bralid rD, imm is op05=0b101110 & rD & op1115=0b11100 & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     rD=inst_start;
+     delayslot(1);
+     call [tmp];
+}
+
+:bralid rD, imm is op05=0b101110 & rD & op1115=0b11100 & imm & immop=1 {
+     local tmp:4 = imm + (imm_msb<<16);
+     rD=inst_start;
+     delayslot(1);
+     call [tmp];
 }
 
 :brai imm is op05=0b101110 & op610=0 & op1115=0b01000 & imm & immop=0 {
@@ -549,8 +575,47 @@ RB: rB is rB             {export rB;}
 	rD = tmp;
 }
 
-:rtsd RA, imm is op05=0b101101 & op610=0b10000 & RA & imm & immop=0 {
+:rtbd RA, imm is op05=0b101101 & op610=0b10010 & RA & imm & immop=0 {
      tmp:4=sext(imm[0,16]);
+     tmp=tmp+RA;
+     delayslot(1);
+     return [tmp];
+}
+
+:rtbd RA, imm is op05=0b101101 & op610=0b10010 & RA & imm & immop=1 {
+     tmp:4=RA+(imm_msb<<16)+imm;
+     delayslot(1);
+     return [tmp];
+}
+
+:rted RA, imm is op05=0b101101 & op610=0b10100 & RA & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     tmp=tmp+RA;
+     delayslot(1);
+     return [tmp];
+}
+
+:rted RA, imm is op05=0b101101 & op610=0b10100 & RA & imm & immop=1 {
+     tmp:4=RA+(imm_msb<<16)+imm;
+     delayslot(1);
+     return [tmp];
+}
+
+:rtid RA, imm is op05=0b101101 & op610=0b10001 & RA & imm & immop=0 {
+     tmp:4=sext(imm[0,16]);
+     tmp=tmp+RA;
+     delayslot(1);
+     return [tmp];
+}
+
+:rtid RA, imm is op05=0b101101 & op610=0b10001 & RA & imm & immop=1 {
+     tmp:4=RA+(imm_msb<<16)+imm;
+     delayslot(1);
+     return [tmp];
+}
+
+:rtsd RA, imm is op05=0b101101 & op610=0b10000 & RA & imm & immop=0 {
+      tmp:4=sext(imm[0,16]);
      tmp=tmp+RA;
      delayslot(1);
      return [tmp];
@@ -853,14 +918,8 @@ RB: rB is rB             {export rB;}
 :bled RA, RB is op05=0b100111 & op610=0b10011 & RA & RB & op2131=0b00000000000 unimpl
 :bgtd RA, RB is op05=0b100111 & op610=0b10100 & RA & RB & op2131=0b00000000000 unimpl
 :bged RA, RB is op05=0b100111 & op610=0b10101 & RA & RB & op2131=0b00000000000 unimpl
-:rtid RA, imm is op05=0b101101 & op610=0b10001 & RA & imm unimpl
-:rtbd RA, imm is op05=0b101101 & op610=0b10010 & RA & imm unimpl
-:rted RA, imm is op05=0b101101 & op610=0b10100 & RA & imm unimpl
 :mbar imm3 is op05=0b101110 & imm3 & op1115=0b00010 & op1631=0b0000000000000100 unimpl
-:braid imm is op05=0b101110 & op610=0 & op1115=0b11000 & imm unimpl
-:bralid rD is op05=0b101110 & rD & op1115=0b11100 & imm unimpl
 :brki rD, imm is op05=0b101110 & rD & op1115=0b01100 & imm unimpl
-:blti RA, imm is op05=0b101111 & op610=0b00010 & RA & imm unimpl
 :lbur rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b01000000000 unimpl
 :lbuea rD, RA, RB is op05=0b110000 & rD & RA & RB & op2131=0b00010000000 unimpl
 :lhu rD, RA, RB is op05=0b110001 & rD & RA & RB & op2131=0b00000000000 unimpl
